@@ -71,18 +71,15 @@ def analyze_rda(fname1, fname2):
     """
 
     """
-    hdr1, data1 = rda.read_rda(fname1)
-    hdr2, data2 = rda.read_rda(fname2)
+    hdr1, data1 = read_rda(fname1)
+    hdr2, data2 = read_rda(fname2)
     dur1 = hdr1['DwellTime']
     dur2 = hdr2['DwellTime']
     ts1 = nts.TimeSeries(data1, duration=dur1, time_unit='ms')
     ts2 = nts.TimeSeries(data2, duration=dur2, time_unit='ms')
 
-    S1 = nta.SpectralAnalyzer(ts1)
-    S2 = nta.SpectralAnalyzer(ts2)
-
-    f1, c1 = S1.spectrum_fourier
-    f2, c2 = S2.spectrum_fourier
-    f_ppm = ut.freq_to_ppm(f1, hz_per_ppm=hdr1['MRFrequency'])
+    f, c1 = ana.get_spectra(ts1,  dict(lb=10, filt_order=256))
+    f, c2 = ana.get_spectra(ts2,  dict(lb=10, filt_order=256))
+    f_ppm = ut.freq_to_ppm(f, hz_per_ppm=hdr1['MRFrequency'])
 
     return f_ppm, c1, c2
