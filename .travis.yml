@@ -17,8 +17,9 @@ install:
     - sudo apt-get install $PYTHON-nose
     - sudo apt-get install $PYTHON-matplotlib
     #pypi installs:
-    - sudo easy_install$PYSUF networkx
     - sudo easy_install$PYSUF nibabel 
+    - sudo easy_install$PYSUF traits
+    - sudo easy_install$PYSUF networkx
     - sudo easy_install$PYSUF nipype 
     - sudo easy_install$PYSUF nitime 
     # Temporary solution to travis issue #155
