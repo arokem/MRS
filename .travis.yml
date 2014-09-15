@@ -16,8 +16,11 @@ install:
     - sudo apt-get install $PYTHON-setuptools
     - sudo apt-get install $PYTHON-nose
     - sudo apt-get install $PYTHON-matplotlib
-    - sudo easy_install$PYSUF nibabel # Latest pypi
-    - sudo easy_install$PYSUF nipype # Latest pypi
+    #pypi installs:
+    - sudo easy_install$PYSUF networkx
+    - sudo easy_install$PYSUF nibabel 
+    - sudo easy_install$PYSUF nipype 
+    - sudo easy_install$PYSUF nitime 
     # Temporary solution to travis issue #155
     # https://github.com/travis-ci/travis-cookbooks/issues/155
     - sudo rm -rf /dev/shm && sudo ln -s /run/shm /dev/shm
