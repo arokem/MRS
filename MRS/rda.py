@@ -83,3 +83,47 @@ def analyze_rda(fname1, fname2):
     f_ppm = ut.freq_to_ppm(f, hz_per_ppm=hdr1['MRFrequency'])
 
     return f_ppm, c1, c2
+
+
+def affine_from_hdr(hdr, R=0, A=0, S=1):
+    """
+    
+    """
+
+    mm_per_vox = [hdr['PixelSpacingRow'],
+                  hdr['PixelSpacingCol'],
+                  hdr['PixelSpacingCol']]
+    
+    roi_loc = [hdr['VOIPositionCor'],
+               hdr['VOIPositionSag'],
+               hdr['VOIPositionTra']]
+    
+    image_tlhc = np.array((-roi_loc[0] - mm_per_vox[0]/2.,
+                           roi_loc[1] + mm_per_vox[1]/2.,
+                           roi_loc[2] - mm_per_vox[1]/2.))
+    
+    image_trhc = image_tlhc - np.array([mm_per_vox[0], 0., 0.])
+    image_brhc = image_trhc + np.array([0., mm_per_vox[1], 0.])
+
+    lr_diff = image_trhc - image_tlhc
+    si_diff = image_trhc - image_brhc
+
+    if not np.all(lr_diff==0) and not np.all(si_diff==0):
+        row_cos =  lr_diff / np.sqrt(lr_diff.dot(lr_diff))
+        col_cos = -si_diff / np.sqrt(si_diff.dot(si_diff))
+    else:
+        row_cos = np.array([1.,0,0])
+        col_cos = np.array([0,-1.,0])
+
+    slice_norm = np.array([R, A, S])
+    
+    rot = np.array(((-row_cos[0], -col_cos[0], -slice_norm[0]),
+                     (-row_cos[1], -col_cos[1], -slice_norm[1]),
+                     (row_cos[2], col_cos[2], slice_norm[2])), dtype=float)
+
+    aff = np.zeros((4,4))
+    aff[0:3,0:3] = rot
+    aff[:,3] = np.append(image_tlhc, 1).T
+    aff[0:3,0:3] = np.dot(aff[0:3,0:3], np.diag(mm_per_vox))
+    return aff
+
