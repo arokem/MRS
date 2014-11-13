@@ -104,6 +104,53 @@ WAREAS = [2,7,41,46]
 CSFAREAS = [4,5,14,15,24,43,44,72]
 
 
+def ROImask(aseg_aff, mrs_aff, aseg_shape):
+    # This applies the concatenation of the transforms from mrs space to
+    # the T1 space. [0,0,0] is the center of the MRS voxel:
+    segvoxdim = np.diagonal(aseg_aff)[:3]
+
+    center = np.round(np.dot(np.dot(np.linalg.pinv(aseg_aff),
+                                        mrs_aff),
+                                  [0,0,0,1]))[:3].astype(int)
+
+    dim=np.abs(np.diagonal(mrs_aff)[:3])
+    
+    # calculate beginning corner of MRS voxel
+    print('Creating mask with center: [%s, %s, %s]'%(center[0],
+                                                    center[1],
+                                                    str(center[2])))
+
+    print('and dimensions: [%s, %s, %s] mm'%(dim[0], dim[1], dim[2]))
+    
+    # calculate roi mask with numpy
+    # round up to nearest number of voxel units
+    voxdim=np.zeros(3)
+    voxdim[0]=np.ceil(np.abs(dim[0] / segvoxdim[0]))
+    voxdim[1]=np.ceil(np.abs(dim[1] / segvoxdim[1]))
+    voxdim[2]=np.ceil(np.abs(dim[2] / segvoxdim[2]))
+
+    print ('MRS voxel dimensions in T1 voxel units: [%s, %s, %s]'%(voxdim[0],
+                                                                  voxdim[1],
+                                                                  voxdim[2]))
+
+    # corners
+    lcorner = [center[0] - voxdim[0] / 2,
+               center[1] - voxdim[1] / 2,
+               center[2] - voxdim[2] / 2]
+
+    ucorner = [center[0] + voxdim[0] / 2,
+               center[1] + voxdim[1] / 2,
+               center[2] + voxdim[2] / 2]
+    # create mask
+    mdata = np.zeros(aseg_shape)
+    for i in range(int(lcorner[0]),int(ucorner[0])):
+        for j in range(int(lcorner[1]),int(ucorner[1])):
+            for k in range(int(lcorner[2]),int(ucorner[2])):
+                mdata[i,j,k]=1
+
+    return mdata
+
+
 def MRSvoxelStats(segfile, MRSfile=None, center=None, dim=None, subjID=None,
                   gareas=GAREAS,wareas=WAREAS,csfareas=CSFAREAS):
     """
@@ -155,70 +202,15 @@ def MRSvoxelStats(segfile, MRSfile=None, center=None, dim=None, subjID=None,
     aseg_data = aseg.get_data().squeeze()
     aseg_aff = aseg.get_affine()
     segdir = os.path.dirname(segfile)
-    segvoxdim=np.diagonal(aseg_aff)[:3]
+    segvoxdim = np.diagonal(aseg_aff)[:3]
 
     # get nifti file of MRS voxel if one is provided
     if MRSfile is not None:
         if center is not None or dim is not None:
             msg = 'provide EITHER MRSfile OR center and dim, not both!'
             raise ValueError(msg)
-        try:
             mrs = nib.load(MRSfile)
             mrs_aff = mrs.get_affine()
-        except:
-            import nimsdata.nimsraw as nr
-            mrs = nr.NIMSPFile(MRSfile)
-            mrs_aff = mrs.qto_xyz
-        #tmp=mrs_aff.copy()
-        #mrs_aff[0,3]=tmp[1,3]
-        #mrs_aff[1,3]=-1.0*tmp[0,3]
-        
-        # This applies the concatenation of the transforms from mrs space to
-        # the T1 space. [0,0,0] is the center of the MRS voxel:
-        center = np.round(np.dot(np.dot(np.linalg.pinv(aseg_aff),
-                                        mrs_aff),
-                                  [0,0,0,1]))[:3].astype(int)
-
-        dim=np.diagonal(mrs_aff)[:3]
-    else: # no MRSfile
-        if center==None or dim==None:
-            msg = 'if no MRSfile is provided, provide center and '
-            msg += 'dimensions of voxel'
-            raise ValueError()    
-
-    # calculate beginning corner of MRS voxel
-    print('Creating mask with center: [%s, %s, %s]'%(center[0],
-                                                    center[1],
-                                                    str(center[2])))
-
-    print('and dimensions: [%s, %s, %s] mm'%(dim[0], dim[1], dim[2]))
-    
-    # calculate roi mask with numpy
-    # round up to nearest number of voxel units
-    voxdim=np.zeros(3)
-    voxdim[0]=np.ceil(np.abs(dim[0] / segvoxdim[0]))
-    voxdim[1]=np.ceil(np.abs(dim[1] / segvoxdim[1]))
-    voxdim[2]=np.ceil(np.abs(dim[2] / segvoxdim[2]))
-
-    print ('MRS voxel dimensions in T1 voxel units: [%s, %s, %s]'%(voxdim[0],
-                                                                  voxdim[1],
-                                                                  voxdim[2]))
-
-    # corners
-    lcorner = [center[0] - voxdim[0] / 2,
-               center[1] - voxdim[1] / 2,
-               center[2] - voxdim[2] / 2]
-
-    ucorner = [center[0] + voxdim[0] / 2,
-               center[1] + voxdim[1] / 2,
-               center[2] + voxdim[2] / 2]
-    # create mask
-    mdata = np.zeros(aseg_data.shape)
-    for i in range(int(lcorner[0]),int(ucorner[0])):
-        for j in range(int(lcorner[1]),int(ucorner[1])):
-            for k in range(int(lcorner[2]),int(ucorner[2])):
-                mdata[i,j,k]=1
-
 
     # calculate grey/white/csf from freesurfer labels
     gdata = np.zeros(aseg_data.shape)
@@ -229,6 +221,7 @@ def MRSvoxelStats(segfile, MRSfile=None, center=None, dim=None, subjID=None,
         for area in areas:
             data[np.where(aseg_data==area)] =1
 
+    mdata = ROImask(aseg_aff, mrs_aff, aseg_data.shape)
     # multiply voxel ROI with seg data
     gmasked= mdata * gdata
     wmasked= mdata * wdata
