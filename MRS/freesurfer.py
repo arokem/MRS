@@ -162,10 +162,13 @@ def MRSvoxelStats(segfile, MRSfile=None, center=None, dim=None, subjID=None,
         if center is not None or dim is not None:
             msg = 'provide EITHER MRSfile OR center and dim, not both!'
             raise ValueError(msg)
-
-        mrs = nib.load(MRSfile)
-        mrs_data = mrs.get_data().squeeze()
-        mrs_aff = mrs.get_affine()
+        try:
+            mrs = nib.load(MRSfile)
+            mrs_aff = mrs.get_affine()
+        except:
+            import nimsdata.nimsraw as nr
+            mrs = nr.NIMSPFile(MRSfile)
+            mrs_aff = mrs.qto_xyz
         #tmp=mrs_aff.copy()
         #mrs_aff[0,3]=tmp[1,3]
         #mrs_aff[1,3]=-1.0*tmp[0,3]
